@@ -15,3 +15,6 @@ Manual smoke checks
 
 Testing rules
 - Run usage-tui show and usage-tui tui for UI/CLI changes.
+
+Commit rules
+- Before committing, run the secret-scanner skill to check for env files and secrets, then follow the git-workflow skill.
