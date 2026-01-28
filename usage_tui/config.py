@@ -55,39 +55,57 @@ class Config:
         """
         Get authentication token for a provider.
 
-        For Claude: Falls back to extracting from Claude CLI credentials
-        if env var is not set.
+        Checks environment variables first, then provider-specific credential stores.
         """
         env_var = self.ENV_VARS.get(provider)
         if env_var and (token := os.environ.get(env_var)):
             return token
 
-        # Special fallback for Claude: extract from CLI credentials
+        # Provider-specific credential stores
         if provider == ProviderName.CLAUDE:
             return extract_claude_cli_token()
+
+        if provider == ProviderName.CODEX:
+            from usage_tui.providers.codex import CodexCredentialStore
+
+            store = CodexCredentialStore()
+            creds = store.load()
+            return creds.access_token if creds else None
+
+        if provider == ProviderName.COPILOT:
+            from usage_tui.providers.copilot import CopilotCredentialStore
+
+            store = CopilotCredentialStore()
+            return store.load_token()
 
         return None
 
     def is_provider_configured(self, provider: ProviderName) -> bool:
-        """Check if a provider has required credentials."""
-        token = self.get_token(provider)
-        if not token:
-            return False
+        """
+        Check if a provider has required credentials.
 
-        # Basic token validation by prefix
-        validation_map = {
-            ProviderName.CLAUDE: "sk-ant-",
-            ProviderName.OPENAI: "sk-",
-            ProviderName.COPILOT: ("ghp_", "github_pat_"),
+        Delegates to provider's is_configured() method for accurate detection.
+        """
+        # Import providers lazily to avoid circular imports
+        from usage_tui.providers import (
+            ClaudeOAuthProvider,
+            OpenAIUsageProvider,
+            CopilotProvider,
+            CodexProvider,
+        )
+
+        provider_map = {
+            ProviderName.CLAUDE: ClaudeOAuthProvider,
+            ProviderName.OPENAI: OpenAIUsageProvider,
+            ProviderName.COPILOT: CopilotProvider,
+            ProviderName.CODEX: CodexProvider,
         }
 
-        if provider in validation_map:
-            prefixes = validation_map[provider]
-            if isinstance(prefixes, tuple):
-                return any(token.startswith(p) for p in prefixes)
-            return token.startswith(prefixes)
+        provider_class = provider_map.get(provider)
+        if provider_class:
+            return provider_class().is_configured()
 
-        return True
+        return False
 
     def get_provider_status(self, provider: ProviderName) -> dict[str, Any]:
         """Get detailed status for a provider."""

@@ -86,9 +86,8 @@ usage-tui tui
 
 **Keyboard shortcuts:**
 - `r` - Refresh data
-- `1` - Switch to 1 day window
+- `5` - Switch to 5 hour window
 - `7` - Switch to 7 day window  
-- `3` - Switch to 30 day window
 - `j` - Toggle raw JSON view
 - `q` - Quit
 
@@ -103,7 +102,7 @@ usage-tui show --provider claude
 usage-tui show --provider openai
 
 # Change time window
-usage-tui show --window 1d
+usage-tui show --window 5h
 usage-tui show --window 30d
 
 # Output as JSON (for scripting)
@@ -145,7 +144,7 @@ All providers return data in this normalized format:
 ```json
 {
   "provider": "claude | openai | copilot",
-  "window": "1d | 7d | 30d",
+  "window": "5h | 7d | 30d",
   "metrics": {
     "cost": 1.42,
     "requests": 37,

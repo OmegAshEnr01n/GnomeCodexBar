@@ -352,7 +352,7 @@ Note: Token is refreshed automatically when needed."""
         rate_limit = data.get("rate_limit", {})
 
         # Use primary window (5-hour) or secondary (weekly) based on requested period
-        window_key = "primary_window" if window == WindowPeriod.DAY_1 else "secondary_window"
+        window_key = "primary_window" if window == WindowPeriod.HOUR_5 else "secondary_window"
         window_data = rate_limit.get(window_key) or rate_limit.get("primary_window", {})
 
         # Parse usage percentage

@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from textual import on
 from textual.app import App, ComposeResult
 from textual.binding import Binding
-from textual.containers import Container, Horizontal, Vertical, VerticalScroll
+from textual.containers import Container, Horizontal, VerticalGroup, VerticalScroll
 from textual.reactive import reactive
 from textual.widgets import (
     Button,
@@ -23,7 +23,12 @@ from textual.widgets import (
 
 from usage_tui.cache import ResultCache
 from usage_tui.config import config
-from usage_tui.providers import ClaudeOAuthProvider, OpenAIUsageProvider
+from usage_tui.providers import (
+    ClaudeOAuthProvider,
+    CodexProvider,
+    CopilotProvider,
+    OpenAIUsageProvider,
+)
 from usage_tui.providers.base import (
     BaseProvider,
     ProviderName,
@@ -130,7 +135,9 @@ class ProviderCard(Static):
             return
 
         yield Label("Loading...", id="status-line", classes="card-subtitle")
-        yield Container(id="metrics-container")
+        if self.provider_name == ProviderName.COPILOT:
+            yield Label("Window: 30d only", classes="card-subtitle")
+        yield VerticalGroup(id="metrics-container")
 
     def watch_result(self, result: ProviderResult | None) -> None:
         """Update display when result changes."""
@@ -141,7 +148,7 @@ class ProviderCard(Static):
         self.remove_class("unconfigured")
 
         status_line = self.query_one("#status-line", Label)
-        metrics_container = self.query_one("#metrics-container", Container)
+        metrics_container = self.query_one("#metrics-container", VerticalGroup)
         metrics_container.remove_children()
 
         if result.is_error:
@@ -236,11 +243,17 @@ class ProviderCard(Static):
 
     def _format_duration(self, seconds: float) -> str:
         """Format duration in human-readable form."""
-        hours = int(seconds // 3600)
-        minutes = int((seconds % 3600) // 60)
-        if hours > 0:
-            return f"{hours}h {minutes}m"
-        return f"{minutes}m"
+        total_minutes = int(seconds // 60)
+        days = total_minutes // (24 * 60)
+        hours = (total_minutes // 60) % 24
+        minutes = total_minutes % 60
+        parts = []
+        if days > 0:
+            parts.append(f"{days}d")
+        if hours > 0 or days > 0:
+            parts.append(f"{hours}h")
+        parts.append(f"{minutes}m")
+        return " ".join(parts)
 
 
 class RawJsonView(Static):
@@ -249,7 +262,7 @@ class RawJsonView(Static):
     DEFAULT_CSS = """
     RawJsonView {
         width: 100%;
-        height: auto;
+        height: 1fr;
         padding: 1;
         background: $surface;
     }
@@ -286,6 +299,19 @@ class UsageTUI(App):
         background: $background;
     }
 
+    TabbedContent {
+        height: 1fr;
+        width: 1fr;
+    }
+
+    ContentSwitcher {
+        height: 1fr;
+    }
+
+    TabPane {
+        height: 1fr;
+    }
+
     #main-container {
         width: 100%;
         height: 100%;
@@ -294,7 +320,7 @@ class UsageTUI(App):
 
     #overview-tab {
         width: 100%;
-        height: 100%;
+        height: 1fr;
         padding: 1;
     }
 
@@ -318,16 +344,15 @@ class UsageTUI(App):
 
     #cards-container {
         width: 100%;
-        height: auto;
+        height: 1fr;
     }
     """
 
     BINDINGS = [
         Binding("q", "quit", "Quit"),
         Binding("r", "refresh", "Refresh"),
-        Binding("1", "window_1d", "1 Day"),
+        Binding("5", "window_5h", "5 Hours"),
         Binding("7", "window_7d", "7 Days"),
-        Binding("3", "window_30d", "30 Days"),
         Binding("j", "toggle_json", "Toggle JSON"),
     ]
 
@@ -342,39 +367,31 @@ class UsageTUI(App):
         self.providers: dict[ProviderName, BaseProvider] = {
             ProviderName.CLAUDE: ClaudeOAuthProvider(),
             ProviderName.OPENAI: OpenAIUsageProvider(),
+            ProviderName.COPILOT: CopilotProvider(),
+            ProviderName.CODEX: CodexProvider(),
         }
         self.results: dict[ProviderName, ProviderResult | None] = {}
 
     def compose(self) -> ComposeResult:
         yield Header()
-        yield Container(
-            TabbedContent(
-                TabPane(
-                    "Overview",
-                    Vertical(
-                        Horizontal(
-                            Button("Refresh", id="refresh-btn", variant="primary"),
-                            Button("1d", id="btn-1d", classes="window-button"),
-                            Button("7d", id="btn-7d", classes="window-button active"),
-                            Button("30d", id="btn-30d", classes="window-button"),
-                            id="controls",
-                        ),
-                        VerticalScroll(
-                            ProviderCard(ProviderName.CLAUDE, id="card-claude"),
-                            ProviderCard(ProviderName.OPENAI, id="card-openai"),
-                            id="cards-container",
-                        ),
-                    ),
-                    id="overview-tab",
-                ),
-                TabPane(
-                    "Raw JSON",
-                    RawJsonView(id="json-view"),
-                    id="json-tab",
-                ),
-            ),
-            id="main-container",
-        )
+        with Container(id="main-container"):
+            with TabbedContent():
+                with TabPane("Overview", id="overview-tab"):
+                    yield Horizontal(
+                        Button("Refresh", id="refresh-btn", variant="primary"),
+                        Button("5h", id="btn-5h", classes="window-button"),
+                        Button("7d", id="btn-7d", classes="window-button active"),
+                        id="controls",
+                    )
+                    yield VerticalScroll(
+                        ProviderCard(ProviderName.CLAUDE, id="card-claude"),
+                        ProviderCard(ProviderName.OPENAI, id="card-openai"),
+                        ProviderCard(ProviderName.COPILOT, id="card-copilot"),
+                        ProviderCard(ProviderName.CODEX, id="card-codex"),
+                        id="cards-container",
+                    )
+                with TabPane("Raw JSON", id="json-tab"):
+                    yield RawJsonView(id="json-view")
         yield Footer()
 
     async def on_mount(self) -> None:
@@ -387,20 +404,15 @@ class UsageTUI(App):
         """Handle refresh button press."""
         await self.action_refresh()
 
-    @on(Button.Pressed, "#btn-1d")
-    async def on_1d_pressed(self) -> None:
-        """Handle 1d button press."""
-        await self.action_window_1d()
+    @on(Button.Pressed, "#btn-5h")
+    async def on_5h_pressed(self) -> None:
+        """Handle 5h button press."""
+        await self.action_window_5h()
 
     @on(Button.Pressed, "#btn-7d")
     async def on_7d_pressed(self) -> None:
         """Handle 7d button press."""
         await self.action_window_7d()
-
-    @on(Button.Pressed, "#btn-30d")
-    async def on_30d_pressed(self) -> None:
-        """Handle 30d button press."""
-        await self.action_window_30d()
 
     async def action_refresh(self) -> None:
         """Refresh all provider data."""
@@ -437,9 +449,9 @@ class UsageTUI(App):
         # Update JSON view
         self._update_json_view()
 
-    async def action_window_1d(self) -> None:
-        """Switch to 1 day window."""
-        self.window = WindowPeriod.DAY_1
+    async def action_window_5h(self) -> None:
+        """Switch to 5 hour window."""
+        self.window = WindowPeriod.HOUR_5
         self._update_window_buttons()
         self.cache.invalidate()  # Clear cache to force refresh with new window
         await self.action_refresh()
@@ -447,13 +459,6 @@ class UsageTUI(App):
     async def action_window_7d(self) -> None:
         """Switch to 7 day window."""
         self.window = WindowPeriod.DAY_7
-        self._update_window_buttons()
-        self.cache.invalidate()
-        await self.action_refresh()
-
-    async def action_window_30d(self) -> None:
-        """Switch to 30 day window."""
-        self.window = WindowPeriod.DAY_30
         self._update_window_buttons()
         self.cache.invalidate()
         await self.action_refresh()
@@ -478,9 +483,8 @@ class UsageTUI(App):
     def _update_window_buttons(self) -> None:
         """Update window button states."""
         buttons = {
-            WindowPeriod.DAY_1: "#btn-1d",
+            WindowPeriod.HOUR_5: "#btn-5h",
             WindowPeriod.DAY_7: "#btn-7d",
-            WindowPeriod.DAY_30: "#btn-30d",
         }
         for period, btn_id in buttons.items():
             try:

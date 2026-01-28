@@ -30,7 +30,7 @@ def get_providers() -> dict[ProviderName, BaseProvider]:
 def parse_window(window: str) -> WindowPeriod:
     """Parse window string to WindowPeriod enum."""
     mapping = {
-        "1d": WindowPeriod.DAY_1,
+        "5h": WindowPeriod.HOUR_5,
         "7d": WindowPeriod.DAY_7,
         "30d": WindowPeriod.DAY_30,
     }
@@ -68,7 +68,7 @@ def main() -> None:
     "--window",
     "-w",
     default="7d",
-    help="Time window (1d, 7d, 30d)",
+    help="Time window (5h, 7d, 30d)",
 )
 @click.option(
     "--json",
@@ -109,7 +109,7 @@ def show(provider: str, window: str, output_json: bool) -> None:
         )
 
         if show_dual_windows:
-            result_5h = asyncio.run(prov.fetch(WindowPeriod.DAY_1))
+            result_5h = asyncio.run(prov.fetch(WindowPeriod.HOUR_5))
             result_7d = asyncio.run(prov.fetch(WindowPeriod.DAY_7))
             results[name.value] = result_7d
             _print_result(name, result_5h, label="5h")
@@ -207,7 +207,7 @@ def doctor() -> None:
         # Test connectivity
         click.echo("  Testing:    ", nl=False)
         try:
-            result = asyncio.run(provider.fetch(WindowPeriod.DAY_1))
+            result = asyncio.run(provider.fetch(WindowPeriod.HOUR_5))
             if result.is_error:
                 click.echo(click.style(f"FAILED - {result.error}", fg="red"))
                 all_ok = False

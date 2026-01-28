@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 class WindowPeriod(str, Enum):
     """Supported time windows for usage queries."""
 
-    DAY_1 = "1d"
+    HOUR_5 = "5h"
     DAY_7 = "7d"
     DAY_30 = "30d"
 

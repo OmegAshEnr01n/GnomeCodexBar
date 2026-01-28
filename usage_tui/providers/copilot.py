@@ -220,12 +220,13 @@ Note: Token needs 'read:user' scope."""
         """
         Fetch GitHub Copilot usage metrics.
 
-        Note: Copilot API returns current quota state, not historical data.
+        Note: Copilot API returns current quota state on a fixed 30-day window.
         The window parameter is ignored.
         """
+        effective_window = WindowPeriod.DAY_30
         if not self.is_configured():
             return self._make_error_result(
-                window=window,
+                window=effective_window,
                 error="Not configured. Run 'usage-tui login --provider copilot'",
             )
 
@@ -251,26 +252,26 @@ Note: Token needs 'read:user' scope."""
 
                 if response.status_code == 404:
                     return self._make_error_result(
-                        window=window,
+                        window=effective_window,
                         error="Copilot not enabled for this account",
                     )
 
                 if response.status_code != 200:
                     return self._make_error_result(
-                        window=window,
+                        window=effective_window,
                         error=f"API error: HTTP {response.status_code}",
                         raw={"status_code": response.status_code, "body": response.text},
                     )
 
                 data = response.json()
-                return self._parse_response(data, window)
+                return self._parse_response(data, effective_window)
 
         except AuthenticationError:
             raise
         except httpx.TimeoutException:
-            return self._make_error_result(window=window, error="Request timed out")
+            return self._make_error_result(window=effective_window, error="Request timed out")
         except httpx.RequestError as e:
-            return self._make_error_result(window=window, error=f"Network error: {e}")
+            return self._make_error_result(window=effective_window, error=f"Network error: {e}")
         except Exception as e:
             raise ProviderError(f"Unexpected error: {e}") from e
 

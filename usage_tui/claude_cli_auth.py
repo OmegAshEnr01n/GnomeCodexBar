@@ -1,7 +1,6 @@
 """Extract and use authentication from Claude CLI installation."""
 
 import json
-import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -103,19 +102,6 @@ class ClaudeCLIAuth:
 
         return info
 
-    def setup_env_var(self) -> bool:
-        """
-        Set CLAUDE_CODE_OAUTH_TOKEN environment variable for current process.
-
-        Returns:
-            True if token was set, False otherwise
-        """
-        token = self.get_access_token()
-        if token:
-            os.environ["CLAUDE_CODE_OAUTH_TOKEN"] = token
-            return True
-        return False
-
 
 def extract_claude_cli_token() -> str | None:
     """
@@ -126,44 +112,3 @@ def extract_claude_cli_token() -> str | None:
     """
     auth = ClaudeCLIAuth()
     return auth.get_access_token()
-
-
-def show_token_info() -> None:
-    """Print information about Claude CLI token."""
-    auth = ClaudeCLIAuth()
-    info = auth.get_token_info()
-
-    if not info["available"]:
-        print("❌ Claude CLI credentials not found")
-        print()
-        print("To set up Claude CLI:")
-        print("  1. Install Claude CLI: npm install -g @anthropics/claude")
-        print("  2. Run: claude setup-token")
-        print("  3. Follow the browser login flow")
-        return
-
-    print("✅ Claude CLI credentials found")
-    print()
-    print(f"  Token:       {info['token_preview']}")
-    print(f"  Expires:     {info['expires_at']}")
-
-    if info.get("expires_in_hours"):
-        print(f"  Valid for:   {info['expires_in_hours']} hours")
-
-    if info["expired"]:
-        print("  Status:      ⚠️  EXPIRED - Run 'claude setup-token' to refresh")
-    else:
-        print("  Status:      ✓ Valid")
-
-    if sub := info.get("subscription_type"):
-        print(f"  Subscription: {sub}")
-
-    if tier := info.get("rate_limit_tier"):
-        print(f"  Rate Limit:  {tier}")
-
-    if scopes := info.get("scopes"):
-        print(f"  Scopes:      {', '.join(scopes)}")
-
-
-if __name__ == "__main__":
-    show_token_info()

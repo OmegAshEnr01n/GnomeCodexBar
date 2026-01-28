@@ -61,7 +61,7 @@ Note: Must be an organization/admin key with usage permissions."""
     def _get_time_range(self, window: WindowPeriod) -> tuple[int, int]:
         """Get Unix timestamps for the time window."""
         now = datetime.now(timezone.utc)
-        days = {"1d": 1, "7d": 7, "30d": 30}[window.value]
+        days = {"5h": 1, "7d": 7, "30d": 30}[window.value]  # 5h maps to 1 day for OpenAI
         start = now - timedelta(days=days)
         return int(start.timestamp()), int(now.timestamp())
 
