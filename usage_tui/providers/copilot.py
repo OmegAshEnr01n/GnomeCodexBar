@@ -91,22 +91,25 @@ class CopilotDeviceFlow:
 
                 data = response.json()
 
-                if "error" in data:
-                    error = data["error"]
-                    if error == "authorization_pending":
-                        continue
-                    elif error == "slow_down":
-                        interval += 5
-                        continue
-                    elif error == "expired_token":
-                        raise AuthenticationError("Device code expired. Please try again.")
-                    elif error == "access_denied":
-                        raise AuthenticationError("Authorization denied by user.")
-                    else:
-                        raise AuthenticationError(f"Authorization failed: {error}")
-
                 if "access_token" in data:
                     return data["access_token"]
+
+                # Handle errors
+                if "error" not in data:
+                    continue
+
+                error = data["error"]
+                if error == "authorization_pending":
+                    continue
+                if error == "slow_down":
+                    interval += 5
+                    continue
+                if error == "expired_token":
+                    raise AuthenticationError("Device code expired. Please try again.")
+                if error == "access_denied":
+                    raise AuthenticationError("Authorization denied by user.")
+
+                raise AuthenticationError(f"Authorization failed: {error}")
 
 
 class CopilotCredentialStore:
@@ -147,8 +150,7 @@ class CopilotCredentialStore:
         if self.CODEXBAR_CONFIG.exists():
             try:
                 data = json.loads(self.CODEXBAR_CONFIG.read_text())
-                providers = data.get("providers", [])
-                for provider in providers:
+                for provider in data.get("providers", []):
                     if provider.get("id") == "copilot":
                         if token := provider.get("apiKey"):
                             return token
@@ -246,12 +248,14 @@ Note: Token needs 'read:user' scope."""
                         "GitHub token invalid or lacks Copilot access. "
                         "Run 'usage-tui login --provider copilot'"
                     )
-                elif response.status_code == 404:
+
+                if response.status_code == 404:
                     return self._make_error_result(
                         window=window,
                         error="Copilot not enabled for this account",
                     )
-                elif response.status_code != 200:
+
+                if response.status_code != 200:
                     return self._make_error_result(
                         window=window,
                         error=f"API error: HTTP {response.status_code}",
@@ -289,47 +293,51 @@ Note: Token needs 'read:user' scope."""
             return quota.get(key_camel) or quota.get(key_snake) or {}
 
         def _get_percent(snapshot: dict) -> float | None:
-            percent = snapshot.get("percentRemaining")
-            if percent is None:
-                percent = snapshot.get("percent_remaining")
+            # Try direct percentage fields first
+            percent = snapshot.get("percentRemaining") or snapshot.get("percent_remaining")
+
+            # Calculate from quota if percentage not available
             if percent is None:
                 entitlement = snapshot.get("entitlement")
-                remaining_value = snapshot.get("quota_remaining")
-                if remaining_value is None:
-                    remaining_value = snapshot.get("remaining")
-                if entitlement:
+                remaining = snapshot.get("quota_remaining") or snapshot.get("remaining")
+                if entitlement and remaining is not None:
                     try:
-                        percent = (float(remaining_value) / float(entitlement)) * 100
+                        percent = (float(remaining) / float(entitlement)) * 100
                     except (TypeError, ValueError, ZeroDivisionError):
-                        percent = None
-            if percent is None:
-                return None
-            try:
-                return float(percent)
-            except (TypeError, ValueError):
-                return None
+                        return None
 
-        # Primary: Premium interactions
-        premium = _get_snapshot("premiumInteractions", "premium_interactions")
-        percent_remaining = _get_percent(premium)
+            # Convert to float
+            if percent is not None:
+                try:
+                    return float(percent)
+                except (TypeError, ValueError):
+                    pass
 
-        if percent_remaining is None:
-            # Fallback to chat quota
-            chat = _get_snapshot("chat", "chat")
-            percent_remaining = _get_percent(chat)
+            return None
 
-        if percent_remaining is None:
-            # Fallback to completions quota
-            completions = _get_snapshot("completions", "completions")
-            percent_remaining = _get_percent(completions)
+        # Try quota snapshots in priority order
+        snapshots_to_try = [
+            ("premiumInteractions", "premium_interactions"),
+            ("chat", "chat"),
+            ("completions", "completions"),
+        ]
 
-        remaining = None
-        if percent_remaining is not None:
-            remaining = percent_remaining
+        percent_remaining = None
+        for camel, snake in snapshots_to_try:
+            snapshot = _get_snapshot(camel, snake)
+            percent_remaining = _get_percent(snapshot)
+            if percent_remaining is not None:
+                break
 
-        reset_raw = data.get("quota_reset_date_utc") or data.get("quotaResetDateUtc")
-        if reset_raw is None:
-            reset_raw = data.get("quota_reset_date") or data.get("quotaResetDate")
+        remaining = percent_remaining
+
+        # Parse reset date from various possible field names
+        reset_raw = (
+            data.get("quota_reset_date_utc")
+            or data.get("quotaResetDateUtc")
+            or data.get("quota_reset_date")
+            or data.get("quotaResetDate")
+        )
 
         reset_at = None
         if reset_raw:
@@ -338,7 +346,7 @@ Note: Token needs 'read:user' scope."""
                 if reset_at.tzinfo is None:
                     reset_at = reset_at.replace(tzinfo=timezone.utc)
             except ValueError:
-                reset_at = None
+                pass
 
         metrics = UsageMetrics(
             remaining=remaining,

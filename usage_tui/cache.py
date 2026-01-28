@@ -57,10 +57,7 @@ class ResultCache:
     def _default_cache_dir(self) -> Path:
         """Get default cache directory following XDG spec."""
         xdg_cache = os.environ.get("XDG_CACHE_HOME")
-        if xdg_cache:
-            base = Path(xdg_cache)
-        else:
-            base = Path.home() / ".cache"
+        base = Path(xdg_cache) if xdg_cache else Path.home() / ".cache"
         return base / "usage-tui"
 
     def _ensure_cache_dir(self) -> None:
@@ -84,12 +81,10 @@ class ResultCache:
         key = self._cache_key(provider, window)
 
         # Check memory cache first
-        if key in self._memory_cache:
-            entry = self._memory_cache[key]
+        if entry := self._memory_cache.get(key):
             if not entry.is_expired():
                 return entry.result
-            else:
-                del self._memory_cache[key]
+            del self._memory_cache[key]
 
         # Fall back to disk cache
         return self._load_from_disk(provider, window)

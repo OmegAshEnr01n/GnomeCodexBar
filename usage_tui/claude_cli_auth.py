@@ -50,9 +50,7 @@ class ClaudeCLIAuth:
     def get_access_token(self) -> str | None:
         """Get the current access token."""
         creds = self.get_credentials()
-        if creds:
-            return creds.get("accessToken")
-        return None
+        return creds.get("accessToken") if creds else None
 
     def is_token_expired(self) -> bool:
         """Check if the token is expired."""

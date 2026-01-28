@@ -59,10 +59,8 @@ class Config:
         if env var is not set.
         """
         env_var = self.ENV_VARS.get(provider)
-        if env_var:
-            token = os.environ.get(env_var)
-            if token:
-                return token
+        if env_var and (token := os.environ.get(env_var)):
+            return token
 
         # Special fallback for Claude: extract from CLI credentials
         if provider == ProviderName.CLAUDE:
@@ -76,13 +74,18 @@ class Config:
         if not token:
             return False
 
-        # Basic validation
-        if provider == ProviderName.CLAUDE:
-            return token.startswith("sk-ant-")
-        elif provider == ProviderName.OPENAI:
-            return token.startswith("sk-")
-        elif provider == ProviderName.COPILOT:
-            return token.startswith("ghp_") or token.startswith("github_pat_")
+        # Basic token validation by prefix
+        validation_map = {
+            ProviderName.CLAUDE: "sk-ant-",
+            ProviderName.OPENAI: "sk-",
+            ProviderName.COPILOT: ("ghp_", "github_pat_"),
+        }
+
+        if provider in validation_map:
+            prefixes = validation_map[provider]
+            if isinstance(prefixes, tuple):
+                return any(token.startswith(p) for p in prefixes)
+            return token.startswith(prefixes)
 
         return True
 

@@ -3,7 +3,6 @@
 import asyncio
 import json
 import sys
-from typing import Optional
 
 import click
 from click.core import ParameterSource
@@ -102,28 +101,24 @@ def show(provider: str, window: str, output_json: bool) -> None:
                 click.echo(f"  Set {config.ENV_VARS.get(name)} environment variable")
             continue
 
-        if (
+        # Show both 5h and 7d windows for quota-based providers when using default window
+        show_dual_windows = (
             not output_json
             and window_source == ParameterSource.DEFAULT
-            and name
-            in {
-                ProviderName.CLAUDE,
-                ProviderName.CODEX,
-            }
-        ):
+            and name in {ProviderName.CLAUDE, ProviderName.CODEX}
+        )
+
+        if show_dual_windows:
             result_5h = asyncio.run(prov.fetch(WindowPeriod.DAY_1))
             result_7d = asyncio.run(prov.fetch(WindowPeriod.DAY_7))
             results[name.value] = result_7d
             _print_result(name, result_5h, label="5h")
             _print_result(name, result_7d, label="7d")
-            continue
-
-        # Fetch data
-        result = asyncio.run(prov.fetch(window_period))
-        results[name.value] = result
-
-        if not output_json:
-            _print_result(name, result)
+        else:
+            result = asyncio.run(prov.fetch(window_period))
+            results[name.value] = result
+            if not output_json:
+                _print_result(name, result)
 
     if output_json:
         output = {k: v.model_dump(mode="json") for k, v in results.items()}

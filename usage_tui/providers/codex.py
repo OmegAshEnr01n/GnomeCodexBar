@@ -303,7 +303,8 @@ Note: Token is refreshed automatically when needed."""
                     raise AuthenticationError(
                         "Codex token expired. Run 'codex' CLI to re-authenticate."
                     )
-                elif response.status_code != 200:
+
+                if response.status_code != 200:
                     return self._make_error_result(
                         window=window,
                         error=f"API error: HTTP {response.status_code}",
@@ -351,12 +352,8 @@ Note: Token is refreshed automatically when needed."""
         rate_limit = data.get("rate_limit", {})
 
         # Use primary window (5-hour) or secondary (weekly) based on requested period
-        if window == WindowPeriod.DAY_1:
-            window_data = rate_limit.get("primary_window", {})
-        else:
-            window_data = rate_limit.get("secondary_window", {})
-            if not window_data:
-                window_data = rate_limit.get("primary_window", {})
+        window_key = "primary_window" if window == WindowPeriod.DAY_1 else "secondary_window"
+        window_data = rate_limit.get(window_key) or rate_limit.get("primary_window", {})
 
         # Parse usage percentage
         used_percent = window_data.get("used_percent")

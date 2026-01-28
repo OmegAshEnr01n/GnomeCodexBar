@@ -85,13 +85,15 @@ Note: Token must start with 'sk-ant-' prefix."""
 
                 if response.status_code == 401:
                     raise AuthenticationError("Invalid or expired OAuth token")
-                elif response.status_code == 429:
+
+                if response.status_code == 429:
                     return self._make_error_result(
                         window=window,
                         error="Rate limited. Try again later.",
                         raw={"status_code": 429},
                     )
-                elif response.status_code != 200:
+
+                if response.status_code != 200:
                     return self._make_error_result(
                         window=window,
                         error=f"API error: HTTP {response.status_code}",

@@ -139,9 +139,11 @@ Note: Must be an organization/admin key with usage permissions."""
         """Check response status and raise appropriate errors."""
         if response.status_code == 401:
             raise AuthenticationError("Invalid API key")
-        elif response.status_code == 403:
+
+        if response.status_code == 403:
             raise AuthenticationError("API key lacks required permissions")
-        elif response.status_code != 200:
+
+        if response.status_code != 200:
             raise ProviderError(f"API error: HTTP {response.status_code}")
 
     def _build_result(
