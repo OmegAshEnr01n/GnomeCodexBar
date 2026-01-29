@@ -86,6 +86,20 @@ Note: Token must start with 'sk-ant-' prefix."""
                 if response.status_code == 401:
                     raise AuthenticationError("Invalid or expired OAuth token")
 
+                if response.status_code == 403:
+                    error_body = response.text
+                    if "user:profile" in error_body:
+                        return self._make_error_result(
+                            window=window,
+                            error="OAuth scope error. Fix: unset CLAUDE_CODE_OAUTH_TOKEN && claude setup-token",
+                            raw={"status_code": 403, "body": error_body},
+                        )
+                    return self._make_error_result(
+                        window=window,
+                        error=f"API forbidden: HTTP {response.status_code}",
+                        raw={"status_code": 403, "body": error_body},
+                    )
+
                 if response.status_code == 429:
                     return self._make_error_result(
                         window=window,

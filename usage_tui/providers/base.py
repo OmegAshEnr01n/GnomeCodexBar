@@ -21,6 +21,7 @@ class ProviderName(str, Enum):
 
     CLAUDE = "claude"
     OPENAI = "openai"
+    OPENROUTER = "openrouter"
     COPILOT = "copilot"
     CODEX = "codex"
 

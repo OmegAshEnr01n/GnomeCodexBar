@@ -19,6 +19,7 @@ class Config:
     ENV_VARS = {
         ProviderName.CLAUDE: "CLAUDE_CODE_OAUTH_TOKEN",
         ProviderName.OPENAI: "OPENAI_ADMIN_KEY",
+        ProviderName.OPENROUTER: "OPENROUTER_API_KEY",
         ProviderName.COPILOT: "GITHUB_TOKEN",
         ProviderName.CODEX: "CODEX_ACCESS_TOKEN",
     }
@@ -36,6 +37,12 @@ class Config:
             "description": "OpenAI API usage and costs",
             "official": True,
             "note": "Requires organization admin API key",
+        },
+        ProviderName.OPENROUTER: {
+            "name": "OpenRouter",
+            "description": "OpenRouter API credits and usage",
+            "official": True,
+            "note": "Uses /api/v1/key for credits and limits",
         },
         ProviderName.COPILOT: {
             "name": "GitHub Copilot",
@@ -90,6 +97,7 @@ class Config:
         from usage_tui.providers import (
             ClaudeOAuthProvider,
             OpenAIUsageProvider,
+            OpenRouterUsageProvider,
             CopilotProvider,
             CodexProvider,
         )
@@ -97,6 +105,7 @@ class Config:
         provider_map = {
             ProviderName.CLAUDE: ClaudeOAuthProvider,
             ProviderName.OPENAI: OpenAIUsageProvider,
+            ProviderName.OPENROUTER: OpenRouterUsageProvider,
             ProviderName.COPILOT: CopilotProvider,
             ProviderName.CODEX: CodexProvider,
         }

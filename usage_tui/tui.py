@@ -28,6 +28,7 @@ from usage_tui.providers import (
     CodexProvider,
     CopilotProvider,
     OpenAIUsageProvider,
+    OpenRouterUsageProvider,
 )
 from usage_tui.providers.base import (
     BaseProvider,
@@ -367,6 +368,7 @@ class UsageTUI(App):
         self.providers: dict[ProviderName, BaseProvider] = {
             ProviderName.CLAUDE: ClaudeOAuthProvider(),
             ProviderName.OPENAI: OpenAIUsageProvider(),
+            ProviderName.OPENROUTER: OpenRouterUsageProvider(),
             ProviderName.COPILOT: CopilotProvider(),
             ProviderName.CODEX: CodexProvider(),
         }
@@ -386,6 +388,7 @@ class UsageTUI(App):
                     yield VerticalScroll(
                         ProviderCard(ProviderName.CLAUDE, id="card-claude"),
                         ProviderCard(ProviderName.OPENAI, id="card-openai"),
+                        ProviderCard(ProviderName.OPENROUTER, id="card-openrouter"),
                         ProviderCard(ProviderName.COPILOT, id="card-copilot"),
                         ProviderCard(ProviderName.CODEX, id="card-codex"),
                         id="cards-container",

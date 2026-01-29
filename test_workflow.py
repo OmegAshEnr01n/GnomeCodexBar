@@ -79,6 +79,33 @@ def create_mock_openai_result() -> ProviderResult:
     )
 
 
+def create_mock_openrouter_result() -> ProviderResult:
+    """Create a mock OpenRouter result with credit usage and limits."""
+    metrics = UsageMetrics(
+        cost=12.75,
+        requests=None,
+        input_tokens=None,
+        output_tokens=None,
+        remaining=68.5,
+        limit=100.0,
+        reset_at=None,
+    )
+
+    return ProviderResult(
+        provider=ProviderName.OPENROUTER,
+        window=WindowPeriod.DAY_7,
+        metrics=metrics,
+        raw={
+            "data": {
+                "limit": 100.0,
+                "limit_remaining": 68.5,
+                "usage_weekly": 9.25,
+                "byok_usage_weekly": 3.5,
+            }
+        },
+    )
+
+
 def print_result_summary(result: ProviderResult) -> None:
     """Print a formatted summary of a result."""
     print(f"\n{'=' * 60}")
@@ -94,7 +121,8 @@ def print_result_summary(result: ProviderResult) -> None:
         filled = int(bar_width * m.usage_percent / 100)
         bar = "█" * filled + "░" * (bar_width - filled)
         print(f"Usage:    {bar} {m.usage_percent:.1f}%")
-        print(f"          ({m.limit - m.remaining:.1f} / {m.limit} used)")
+        if m.limit is not None and m.remaining is not None:
+            print(f"          ({m.limit - m.remaining:.1f} / {m.limit} used)")
 
     if m.reset_at:
         delta = m.reset_at - datetime.now(timezone.utc)
@@ -124,27 +152,33 @@ async def main():
     print("\n1️⃣  Creating mock provider results...")
     claude_result = create_mock_claude_result()
     openai_result = create_mock_openai_result()
+    openrouter_result = create_mock_openrouter_result()
     print("   ✓ Claude result created")
     print("   ✓ OpenAI result created")
+    print("   ✓ OpenRouter result created")
 
     # Test 2: Test caching
     print("\n2️⃣  Testing cache layer...")
     cache = ResultCache()
     cache.set(claude_result)
     cache.set(openai_result)
+    cache.set(openrouter_result)
     print(f"   ✓ Results cached to: {cache._cache_dir}")
 
     # Test 3: Retrieve from cache
     print("\n3️⃣  Retrieving from cache...")
     cached_claude = cache.get(ProviderName.CLAUDE, WindowPeriod.DAY_7)
     cached_openai = cache.get(ProviderName.OPENAI, WindowPeriod.DAY_7)
+    cached_openrouter = cache.get(ProviderName.OPENROUTER, WindowPeriod.DAY_7)
     print(f"   ✓ Claude cached: {cached_claude is not None}")
     print(f"   ✓ OpenAI cached: {cached_openai is not None}")
+    print(f"   ✓ OpenRouter cached: {cached_openrouter is not None}")
 
     # Test 4: Display results
     print("\n4️⃣  Displaying results...")
     print_result_summary(claude_result)
     print_result_summary(openai_result)
+    print_result_summary(openrouter_result)
 
     # Test 5: Test normalized output
     print("\n\n5️⃣  Testing normalized output format...")
@@ -153,6 +187,7 @@ async def main():
     output = {
         "claude": claude_result.model_dump(mode="json"),
         "openai": openai_result.model_dump(mode="json"),
+        "openrouter": openrouter_result.model_dump(mode="json"),
     }
     print("\n   JSON Output (normalized):")
     print("   " + "─" * 56)

@@ -11,6 +11,7 @@ from usage_tui.config import config
 from usage_tui.providers import (
     ClaudeOAuthProvider,
     OpenAIUsageProvider,
+    OpenRouterUsageProvider,
     CopilotProvider,
     CodexProvider,
 )
@@ -22,6 +23,7 @@ def get_providers() -> dict[ProviderName, BaseProvider]:
     return {
         ProviderName.CLAUDE: ClaudeOAuthProvider(),
         ProviderName.OPENAI: OpenAIUsageProvider(),
+        ProviderName.OPENROUTER: OpenRouterUsageProvider(),
         ProviderName.COPILOT: CopilotProvider(),
         ProviderName.CODEX: CodexProvider(),
     }
@@ -53,7 +55,7 @@ def parse_provider(provider: str) -> ProviderName | None:
 @click.group()
 @click.version_option()
 def main() -> None:
-    """Usage metrics TUI for Claude, OpenAI, and GitHub Copilot."""
+    """Usage metrics TUI for Claude, OpenAI, OpenRouter, Copilot, and Codex."""
     pass
 
 
@@ -62,7 +64,7 @@ def main() -> None:
     "--provider",
     "-p",
     default="all",
-    help="Provider to query (claude, openai, copilot, codex, all)",
+    help="Provider to query (claude, openai, openrouter, copilot, codex, all)",
 )
 @click.option(
     "--window",
