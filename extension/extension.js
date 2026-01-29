@@ -164,20 +164,20 @@ class UsageTuiIndicator extends PanelMenu.Button {
      * Build the dropdown popup menu with all UI elements
      */
     _buildPopupMenu() {
-        // ===== HEADER SECTION =====
+        // ===== HEADER SECTION (compact) =====
         let headerBox = new St.BoxLayout({
             vertical: false,
-            style: 'padding: 10px; spacing: 10px;',
+            style: 'padding: 6px 8px; spacing: 8px;',
         });
         
         let headerIcon = new St.Icon({
             icon_name: 'utilities-system-monitor-symbolic',
-            icon_size: 24,
+            icon_size: 20,
         });
         
         let headerLabel = new St.Label({
             text: 'usage-tui',
-            style: 'font-weight: bold; font-size: 1.3em;',
+            style: 'font-weight: bold; font-size: 1.1em;',
             y_align: Clutter.ActorAlign.CENTER,
         });
         
@@ -190,14 +190,26 @@ class UsageTuiIndicator extends PanelMenu.Button {
         
         this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
         
-        // ===== PROVIDERS CONTAINER =====
+        // ===== PROVIDERS CONTAINER WITH SCROLL =====
         this._providersContainer = new St.BoxLayout({
             vertical: true,
-            style: 'padding: 10px 15px; spacing: 12px;',
+            style: 'padding: 6px 10px; spacing: 6px;',
         });
         
+        // Get screen height for max height calculation (80%)
+        let monitor = Main.layoutManager.primaryMonitor;
+        let maxHeight = monitor ? Math.floor(monitor.height * 0.8) : 600;
+        
+        this._scrollView = new St.ScrollView({
+            style: `max-height: ${maxHeight}px;`,
+            hscrollbar_policy: St.PolicyType.NEVER,
+            vscrollbar_policy: St.PolicyType.AUTOMATIC,
+            overlay_scrollbars: true,
+        });
+        this._scrollView.add_child(this._providersContainer);
+        
         let providersItem = new PopupMenu.PopupBaseMenuItem({ reactive: false });
-        providersItem.add_child(this._providersContainer);
+        providersItem.add_child(this._scrollView);
         this.menu.addMenuItem(providersItem);
         
         this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
@@ -251,42 +263,42 @@ class UsageTuiIndicator extends PanelMenu.Button {
     _createProviderCard(providerName) {
         let color = PROVIDER_COLORS[providerName] || '#888';
         
-        // Card container
+        // Card container (compact)
         let container = new St.BoxLayout({
             vertical: true,
             style: `
                 background-color: rgba(255, 255, 255, 0.05);
-                border-radius: 8px;
-                padding: 10px;
+                border-radius: 6px;
+                padding: 6px 8px;
                 border-left: 3px solid ${color};
             `,
         });
         
-        // Provider name header
+        // Provider name header (compact)
         let header = new St.Label({
             text: providerName.toUpperCase(),
             style: `
                 font-weight: bold;
-                font-size: 0.9em;
+                font-size: 0.85em;
                 color: ${color};
-                margin-bottom: 5px;
+                margin-bottom: 3px;
             `,
         });
         container.add_child(header);
         
-        // Progress bar for quota-based providers
+        // Progress bar for quota-based providers (compact)
         let progressContainer = new St.BoxLayout({
             vertical: false,
-            style: 'spacing: 8px; margin-bottom: 5px;',
+            style: 'spacing: 6px; margin-bottom: 3px;',
         });
         
         let progressBg = new St.BoxLayout({
-            style: 'background-color: #404040; border-radius: 3px; height: 6px;',
+            style: 'background-color: #404040; border-radius: 2px; height: 5px;',
             x_expand: true,
         });
         
         let progressFill = new St.Widget({
-            style: `background-color: ${color}; border-radius: 3px; height: 6px; width: 0px;`,
+            style: `background-color: ${color}; border-radius: 2px; height: 5px; width: 0px;`,
         });
         
         progressBg.add_child(progressFill);
@@ -300,67 +312,79 @@ class UsageTuiIndicator extends PanelMenu.Button {
         
         container.add_child(progressContainer);
 
-        // Window-specific progress bars (5h / 7d)
+        // Window-specific progress bars (5h / 7d) with reset labels (compact)
         const createWindowBar = (labelText) => {
+            let container = new St.BoxLayout({
+                vertical: true,
+                style: 'spacing: 1px;'
+            });
+
             let row = new St.BoxLayout({
                 vertical: false,
-                style: 'spacing: 6px;'
+                style: 'spacing: 4px;'
             });
 
             let label = new St.Label({
                 text: labelText,
-                style: 'font-size: 0.75em; color: #888; min-width: 24px;'
+                style: 'font-size: 0.7em; color: #888; min-width: 20px;'
             });
 
             let barBg = new St.BoxLayout({
-                style: 'background-color: #404040; border-radius: 3px; height: 6px;',
+                style: 'background-color: #404040; border-radius: 2px; height: 5px;',
                 x_expand: true,
             });
 
             let barFill = new St.Widget({
-                style: `background-color: ${color}; border-radius: 3px; height: 6px; width: 0px;`,
+                style: `background-color: ${color}; border-radius: 2px; height: 5px; width: 0px;`,
             });
 
             let pctLabel = new St.Label({
                 text: '',
-                style: 'font-size: 0.75em; color: #888; min-width: 35px;'
+                style: 'font-size: 0.7em; color: #888; min-width: 32px;'
+            });
+
+            let resetLabel = new St.Label({
+                text: '',
+                style: 'font-size: 0.65em; color: #666; margin-left: 24px;'
             });
 
             barBg.add_child(barFill);
             row.add_child(label);
             row.add_child(barBg);
             row.add_child(pctLabel);
-            row.hide();
+            container.add_child(row);
+            container.add_child(resetLabel);
+            container.hide();
 
-            return { row, barFill, pctLabel };
+            return { container, row, barFill, pctLabel, resetLabel };
         };
 
         let windowBars = new St.BoxLayout({
             vertical: true,
-            style: 'spacing: 4px; margin-bottom: 5px;',
+            style: 'spacing: 2px; margin-bottom: 3px;',
         });
 
         let fiveHourBar = createWindowBar('5h');
         let sevenDayBar = createWindowBar('7d');
 
-        windowBars.add_child(fiveHourBar.row);
-        windowBars.add_child(sevenDayBar.row);
+        windowBars.add_child(fiveHourBar.container);
+        windowBars.add_child(sevenDayBar.container);
         windowBars.hide();
 
         container.add_child(windowBars);
         
-        // Stats grid
+        // Stats grid (compact)
         let statsGrid = new St.BoxLayout({
             vertical: true,
-            style: 'spacing: 2px;',
+            style: 'spacing: 1px;',
         });
         
-        let costLabel = new St.Label({ style: 'font-size: 0.85em;' });
-        let byokLabel = new St.Label({ style: 'font-size: 0.85em;' });
-        let requestsLabel = new St.Label({ style: 'font-size: 0.85em;' });
-        let tokensLabel = new St.Label({ style: 'font-size: 0.85em;' });
-        let resetsLabel = new St.Label({ style: 'font-size: 0.8em; color: #888; margin-top: 3px;' });
-        let errorLabel = new St.Label({ style: 'font-size: 0.8em; color: #f44336; margin-top: 3px;' });
+        let costLabel = new St.Label({ style: 'font-size: 0.8em;' });
+        let byokLabel = new St.Label({ style: 'font-size: 0.8em;' });
+        let requestsLabel = new St.Label({ style: 'font-size: 0.8em;' });
+        let tokensLabel = new St.Label({ style: 'font-size: 0.8em;' });
+        let resetsLabel = new St.Label({ style: 'font-size: 0.75em; color: #888; margin-top: 2px;' });
+        let errorLabel = new St.Label({ style: 'font-size: 0.75em; color: #f44336; margin-top: 2px;' });
         
         statsGrid.add_child(costLabel);
         statsGrid.add_child(byokLabel);
@@ -404,11 +428,11 @@ class UsageTuiIndicator extends PanelMenu.Button {
             card.requestsLabel.text = '';
             card.tokensLabel.text = '';
             card.resetsLabel.text = '';
-            card.progressFill.style = 'background-color: #f44336; border-radius: 3px; height: 6px; width: 0px;';
+            card.progressFill.style = 'background-color: #f44336; border-radius: 2px; height: 5px; width: 0px;';
             card.progressLabel.text = '';
             card.windowBars.hide();
-            card.fiveHourBar.row.hide();
-            card.sevenDayBar.row.hide();
+            card.fiveHourBar.container.hide();
+            card.sevenDayBar.container.hide();
             card.progressContainer.show();
             return;
         }
@@ -437,40 +461,96 @@ class UsageTuiIndicator extends PanelMenu.Button {
             return '#f44336';
         };
 
-        const updateWindowBar = (bar, pct) => {
+        const updateWindowBar = (bar, pct, resetTime, useDays) => {
             let width = Math.round(pct * 2);
             let color = getProgressColor(pct);
             bar.barFill.style = `
                 background-color: ${color};
-                border-radius: 3px;
-                height: 6px;
+                border-radius: 2px;
+                height: 5px;
                 width: ${width}px;
             `;
             bar.pctLabel.text = `${pct.toFixed(1)}%`;
-            bar.row.show();
+            
+            // Format reset time
+            if (resetTime) {
+                let resetDate;
+                if (typeof resetTime === 'number') {
+                    // Epoch seconds (Codex)
+                    resetDate = new Date(resetTime * 1000);
+                } else {
+                    // ISO string (Claude)
+                    resetDate = new Date(resetTime);
+                }
+                let now = new Date();
+                let diffMs = resetDate - now;
+                if (diffMs > 0) {
+                    let days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+                    let hours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                    let mins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+                    if (useDays && days > 0) {
+                        bar.resetLabel.text = `Resets in ${days}d ${hours}h ${mins}m`;
+                    } else {
+                        // For 5h window, show total hours (no days)
+                        let totalHours = days * 24 + hours;
+                        bar.resetLabel.text = `Resets in ${totalHours}h ${mins}m`;
+                    }
+                    bar.resetLabel.show();
+                } else {
+                    bar.resetLabel.text = '';
+                    bar.resetLabel.hide();
+                }
+            } else {
+                bar.resetLabel.text = '';
+                bar.resetLabel.hide();
+            }
+            
+            bar.container.show();
         };
+
+        // Get reset times from raw data
+        let fiveHourReset = null;
+        let sevenDayReset = null;
+        
+        // Claude: raw.five_hour.resets_at, raw.seven_day.resets_at (ISO strings)
+        if (raw.five_hour && raw.five_hour.resets_at) {
+            fiveHourReset = raw.five_hour.resets_at;
+        }
+        if (raw.seven_day && raw.seven_day.resets_at) {
+            sevenDayReset = raw.seven_day.resets_at;
+        }
+        
+        // Codex: raw.rate_limit.primary_window.reset_at, raw.rate_limit.secondary_window.reset_at (epoch seconds)
+        if (raw.rate_limit && raw.rate_limit.primary_window && raw.rate_limit.primary_window.reset_at) {
+            fiveHourReset = raw.rate_limit.primary_window.reset_at;
+        }
+        if (raw.rate_limit && raw.rate_limit.secondary_window && raw.rate_limit.secondary_window.reset_at) {
+            sevenDayReset = raw.rate_limit.secondary_window.reset_at;
+        }
 
         let hasWindowBars = false;
         if (fiveHourUtil !== null) {
-            updateWindowBar(card.fiveHourBar, fiveHourUtil);
+            updateWindowBar(card.fiveHourBar, fiveHourUtil, fiveHourReset, false);
             hasWindowBars = true;
         } else {
-            card.fiveHourBar.row.hide();
+            card.fiveHourBar.container.hide();
         }
 
         if (sevenDayUtil !== null) {
-            updateWindowBar(card.sevenDayBar, sevenDayUtil);
+            updateWindowBar(card.sevenDayBar, sevenDayUtil, sevenDayReset, true);
             hasWindowBars = true;
         } else {
-            card.sevenDayBar.row.hide();
+            card.sevenDayBar.container.hide();
         }
 
         if (hasWindowBars) {
             card.windowBars.show();
             card.progressContainer.hide();
+            card.resetsLabel.hide();  // Hide general reset when window bars shown
         } else {
             card.windowBars.hide();
             card.progressContainer.show();
+            card.resetsLabel.show();  // Show general reset when no window bars
         }
 
         // Calculate usage percent from remaining/limit if not provided
@@ -489,13 +569,13 @@ class UsageTuiIndicator extends PanelMenu.Button {
                 let color = getProgressColor(pct);
                 card.progressFill.style = `
                     background-color: ${color};
-                    border-radius: 3px;
-                    height: 6px;
+                    border-radius: 2px;
+                    height: 5px;
                     width: ${width}px;
                 `;
                 card.progressLabel.text = `${pct.toFixed(1)}%`;
             } else {
-                card.progressFill.style = 'background-color: #888; border-radius: 3px; height: 6px; width: 0px;';
+                card.progressFill.style = 'background-color: #888; border-radius: 2px; height: 5px; width: 0px;';
                 card.progressLabel.text = '';
             }
         }
