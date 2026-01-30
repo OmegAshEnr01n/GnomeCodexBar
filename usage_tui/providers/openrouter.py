@@ -1,7 +1,5 @@
 """OpenRouter usage and credit provider."""
 
-import os
-
 import httpx
 
 from usage_tui.providers.base import (
@@ -35,9 +33,13 @@ class OpenRouterUsageProvider(BaseProvider):
         Initialize the OpenRouter usage provider.
 
         Args:
-            api_key: API key. If not provided, reads from environment.
+            api_key: API key. If not provided, reads from config (env var or env file).
         """
-        self._api_key = api_key or os.environ.get(self.TOKEN_ENV_VAR)
+        if api_key:
+            self._api_key = api_key
+        else:
+            from usage_tui.config import config
+            self._api_key = config.get_token(ProviderName.OPENROUTER)
 
     def is_configured(self) -> bool:
         """Check if API key is available."""

@@ -1,6 +1,5 @@
 """OpenAI usage and cost provider."""
 
-import os
 from datetime import datetime, timedelta, timezone
 
 import httpx
@@ -40,9 +39,13 @@ class OpenAIUsageProvider(BaseProvider):
         Initialize the OpenAI usage provider.
 
         Args:
-            api_key: Admin API key. If not provided, reads from environment.
+            api_key: Admin API key. If not provided, reads from config (env var or env file).
         """
-        self._api_key = api_key or os.environ.get(self.TOKEN_ENV_VAR)
+        if api_key:
+            self._api_key = api_key
+        else:
+            from usage_tui.config import config
+            self._api_key = config.get_token(ProviderName.OPENAI)
 
     def is_configured(self) -> bool:
         """Check if API key is available."""
